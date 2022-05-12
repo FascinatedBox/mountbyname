@@ -1,0 +1,34 @@
+#!/usr/bin/env xonsh
+
+import re
+import sys
+
+if len(sys.argv) == 3:
+    action = sys.argv[1]
+
+    if "mount".startswith(action):
+        sys.argv[1] = "mount"
+    elif "unmount".startswith(action):
+        sys.argv[1] = "unmount"
+
+if len(sys.argv) != 3 || \
+    (sys.argv[1] != "mount" && sys.argv[1] != "unmount"):
+    print("Usage: mountbyname mount|unmount <label>")
+    sys.exit(1)
+
+block_device = "/org/freedesktop/UDisks2/block_devices/"
+
+target = $(udisksctl dump).split("\n")
+
+device_list = filter(lambda x: x.startswith(block_device), target)
+device_list = map(lambda x: x.replace(block_device, "").replace(":", ""), device_list)
+
+label_list = filter(lambda x: x.find("IdLabel") != -1, target)
+label_list = map(lambda x: re.sub(r" +IdLabel: +", "", x), label_list)
+
+list_pair = zip(device_list, label_list)
+list_pair = filter(lambda x: x[1], list_pair)
+
+for p in list_pair:
+    if sys.argv[2] in p[1]:
+        udisksctl @(sys.argv[1]) -b /dev/@(p[0])
